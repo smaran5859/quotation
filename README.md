@@ -1,1 +1,279 @@
-# quotation
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vasanth Quotation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 15px;
+      max-width: 600px;
+      margin: auto;
+    }
+    label, select, input {
+      margin: 8px 0;
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .section {
+      margin-top: 20px;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #f9f9f9;
+    }
+    .result, .bill {
+      margin-top: 20px;
+    }
+    button {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      width: 100%;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+    .flex-row {
+      display: flex;
+      gap: 10px;
+    }
+    .flex-row > div {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Box Fit Calculator</h2>
+
+  <div class="section">
+    <label>Box Unit:
+      <select id="boxUnit">
+        <option value="mm">mm</option>
+        <option value="cm">cm</option>
+        <option value="in">inches</option>
+      </select>
+    </label>
+    <label>Box Width: <input type="number" id="boxWidth" /></label>
+    <label>Box Height: <input type="number" id="boxHeight" /></label>
+  </div>
+
+  <div class="section">
+    <label>Paper Unit:
+      <select id="paperUnit">
+        <option value="mm">mm</option>
+        <option value="cm">cm</option>
+        <option value="in">inches</option>
+      </select>
+    </label>
+    <label>Paper Size:
+      <select id="paperSize">
+        <option value="A4">A4 (210 x 297 mm)</option>
+        <option value="A3">A3 (297 x 420 mm)</option>
+        <option value="13x19">13 x 19 inches</option>
+        <option value="20x30">20 x 30 inches</option>
+        <option value="custom">Custom</option>
+      </select>
+    </label>
+    <div id="customSize" style="display:none;">
+      <label>Custom Paper Width: <input type="number" id="paperWidth" /></label>
+      <label>Custom Paper Height: <input type="number" id="paperHeight" /></label>
+    </div>
+  </div>
+
+  <div class="section">
+    <label>Quantity: <input type="number" id="quantity" /></label>
+    <label>Paper Price per Sheet: <input type="number" id="paperPrice" /></label>
+    <label>Printing Cost: <input type="number" id="printingCost" /></label>
+    <label>Auto Cost: <input type="number" id="autoCost" /></label>
+    <label>Die Cost: <input type="number" id="dieCost" /></label>
+    <label>Design Cost: <input type="number" id="designCost" /></label>
+    <label>Commission: <input type="number" id="commission" /></label>
+  </div>
+
+  <div class="section">
+    <label>Lamination:
+      <select id="laminationType">
+        <option value="none">None</option>
+        <option value="gloss">Gloss</option>
+        <option value="matt">Matt</option>
+      </select>
+    </label>
+    <div id="laminationSides" style="display:none;">
+      <label><input type="radio" name="laminationSide" value="one" checked /> One Side</label>
+      <label><input type="radio" name="laminationSide" value="two" /> Two Sides</label>
+    </div>
+  </div>
+
+  <div class="section" id="extraItemsSection">
+    <h3>Extra Add-ons</h3>
+    <div id="extrasList"></div>
+    <div class="flex-row">
+      <div><input type="text" id="extraName" placeholder="Item Name" /></div>
+      <div><input type="number" id="extraPrice" placeholder="Price ₹" /></div>
+    </div>
+    <button onclick="addExtra()">+ Add Extra</button>
+  </div>
+
+  <button onclick="calculateBoxes()">📦 Calculate</button>
+
+  <div class="result" id="result"></div>
+  <div class="bill" id="bill"></div>
+
+  <script>
+    const paperSize = document.getElementById('paperSize');
+    const laminationType = document.getElementById('laminationType');
+    const laminationSides = document.getElementById('laminationSides');
+    const extrasList = document.getElementById('extrasList');
+    const extraItems = [];
+
+    paperSize.addEventListener('change', () => {
+      document.getElementById('customSize').style.display = paperSize.value === 'custom' ? 'block' : 'none';
+    });
+
+    laminationType.addEventListener('change', () => {
+      laminationSides.style.display = laminationType.value !== 'none' ? 'block' : 'none';
+    });
+
+    function convertToMM(value, unit) {
+      if (unit === 'cm') return value * 10;
+      if (unit === 'in') return value * 25.4;
+      return value;
+    }
+
+    function getPaperSize(unit) {
+      const size = paperSize.value;
+      const sizes = {
+        'A4': [210, 297],
+        'A3': [297, 420],
+        '13x19': [13 * 25.4, 19 * 25.4],
+        '20x30': [20 * 25.4, 30 * 25.4]
+      };
+      return size === 'custom'
+        ? [convertToMM(+document.getElementById('paperWidth').value || 0, unit), convertToMM(+document.getElementById('paperHeight').value || 0, unit)]
+        : sizes[size] || [0, 0];
+    }
+
+    function calculateLaminationCost(areaMM2, totalSheets, laminationTypeValue, laminationSide) {
+      if (totalSheets < 100) {
+        const sides = laminationSide === "two" ? 2 : 1;
+        return laminationTypeValue === "gloss" ? (sides === 1 ? 150 : 300) : (sides === 1 ? 250 : 500);
+      } else {
+        const areaStr = Math.floor(areaMM2).toString();
+        let rupees = 0, paise = 0;
+        if (areaStr.length >= 3) {
+          rupees = parseInt(areaStr.charAt(0), 10);
+          paise = parseInt(areaStr.substr(1, 2), 10);
+        } else if (areaStr.length === 2) {
+          rupees = parseInt(areaStr.charAt(0), 10);
+          paise = parseInt(areaStr.charAt(1) + "0", 10);
+        } else if (areaStr.length === 1) {
+          rupees = parseInt(areaStr.charAt(0), 10);
+          paise = 0;
+        }
+        const costPerSheet = rupees + paise / 100;
+        return costPerSheet * totalSheets;
+      }
+    }
+
+    function addExtra() {
+      const name = document.getElementById('extraName').value.trim();
+      const price = +document.getElementById('extraPrice').value;
+      if (name && price) {
+        extraItems.push({ name, price });
+        const div = document.createElement('div');
+        div.textContent = `${name}: ₹${price.toFixed(2)}`;
+        extrasList.appendChild(div);
+        document.getElementById('extraName').value = '';
+        document.getElementById('extraPrice').value = '';
+      }
+    }
+
+    function calculateBoxes() {
+      const boxUnit = document.getElementById('boxUnit').value;
+      const paperUnit = document.getElementById('paperUnit').value;
+      const boxW = convertToMM(+document.getElementById('boxWidth').value || 0, boxUnit);
+      const boxH = convertToMM(+document.getElementById('boxHeight').value || 0, boxUnit);
+      const [paperWmm, paperHmm] = getPaperSize(paperUnit);
+      const quantity = +document.getElementById('quantity').value || 0;
+      const paperPrice = +document.getElementById('paperPrice').value || 0;
+      const printingCost = +document.getElementById('printingCost').value || 0;
+      const autoCost = +document.getElementById('autoCost').value || 0;
+      const dieCost = +document.getElementById('dieCost').value || 0;
+      const designCost = +document.getElementById('designCost').value || 0;
+      const commission = +document.getElementById('commission').value || 0;
+      const laminationTypeValue = laminationType.value;
+      const laminationSide = document.querySelector('input[name="laminationSide"]:checked')?.value || 'one';
+
+      if (!boxW || !boxH || !paperWmm || !paperHmm || !quantity) {
+        document.getElementById('result').innerHTML = '';
+        document.getElementById('bill').innerHTML = '';
+        return;
+      }
+
+      const fitNormal = Math.floor(paperWmm / boxW) * Math.floor(paperHmm / boxH);
+      const fitRotated = Math.floor(paperHmm / boxW) * Math.floor(paperWmm / boxH);
+
+      let maxFit = 0, boxesPerRow = 0, boxesPerCol = 0;
+      if (fitNormal >= fitRotated) {
+        maxFit = fitNormal;
+        boxesPerRow = Math.floor(paperWmm / boxW);
+        boxesPerCol = Math.floor(paperHmm / boxH);
+      } else {
+        maxFit = fitRotated;
+        boxesPerRow = Math.floor(paperHmm / boxW);
+        boxesPerCol = Math.floor(paperWmm / boxH);
+      }
+
+      if (maxFit === 0) {
+        document.getElementById('result').innerHTML = 'Box size too big to fit on the selected paper.';
+        document.getElementById('bill').innerHTML = '';
+        return;
+      }
+
+      const totalSheets = Math.ceil(quantity / maxFit);
+      const areaMM2 = paperWmm * paperHmm;
+      let laminationCost = 0;
+
+      if (laminationTypeValue !== 'none') {
+        laminationCost = calculateLaminationCost(areaMM2, totalSheets, laminationTypeValue, laminationSide);
+      }
+
+      const paperCost = paperPrice * totalSheets;
+      const extrasCost = extraItems.reduce((sum, item) => sum + item.price, 0);
+      const totalCost = paperCost + printingCost + laminationCost + autoCost + dieCost + designCost + commission + extrasCost;
+      const costPerBox = quantity ? (totalCost / quantity) : 0;
+
+      document.getElementById('result').innerHTML = `
+        <strong>Max Boxes per Paper:</strong> ${maxFit}<br />
+        <strong>Boxes per Row:</strong> ${boxesPerRow}<br />
+        <strong>Boxes per Column:</strong> ${boxesPerCol}<br />
+        <strong>Total Sheets Needed:</strong> ${totalSheets}
+      `;
+
+      let extraDetails = extraItems.map(e => `${e.name}: ₹${e.price.toFixed(2)}`).join('<br />');
+
+      document.getElementById('bill').innerHTML = `
+        <strong>Paper Cost:</strong> ₹${paperCost.toFixed(2)}<br />
+        <strong>Printing Cost:</strong> ₹${printingCost.toFixed(2)}<br />
+        <strong>Lamination Cost:</strong> ₹${laminationCost.toFixed(2)}<br />
+        <strong>Auto Cost:</strong> ₹${autoCost.toFixed(2)}<br />
+        <strong>Die Cost:</strong> ₹${dieCost.toFixed(2)}<br />
+        <strong>Design Cost:</strong> ₹${designCost.toFixed(2)}<br />
+        <strong>Commission:</strong> ₹${commission.toFixed(2)}<br />
+        <strong>Extras:</strong><br />${extraDetails}<br />
+        <strong>Total Cost:</strong> ₹${totalCost.toFixed(2)}<br />
+        <strong>Cost per Box:</strong> ₹${costPerBox.toFixed(2)}
+      `;
+    }
+  </script>
+
+</body>
+</html>
